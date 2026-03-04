@@ -1,0 +1,52 @@
+#Cell_1
+
+import sys
+shared_dir = '/nsls2/data/lix/shared/software/beta'
+sys.path = ['.', f'{shared_dir}/py4xs', f'{shared_dir}/lixtools']+sys.path
+
+%matplotlib widget
+import lixtools,py4xs,hdf5plugin
+#print(py4xs.__version__)
+#print(lixtools.__version__)
+from lixtools.notebooks import display_data_h5xs
+from py4xs.hdf import h5xs,lsh5,h5exp,create_linked_files
+import numpy as np
+import pylab as plt
+from py4xs.slnxs import trans_mode
+import warnings
+from datetime import datetime
+warnings.filterwarnings("ignore")
+de=h5exp('exp.h5')
+
+#Cell_2
+
+import os
+import numpy as np
+
+outdir = "transmission_dat_Thomas"
+os.makedirs(outdir, exist_ok=True)
+
+#Cell_3
+
+def save_transmission(fns):
+    fn = fns
+    dt1=h5xs(fn, [de.detectors, de.qgrid])
+    dt1.load_data()
+    dt1.set_trans(trans_mode.external)
+    for sample_name, sample_dict in dt1.d0s.items():
+        if 'transmission' not in sample_dict:
+            continue
+    
+        transmission = sample_dict['transmission']
+    
+        out_fn = os.path.join(outdir, f"{sample_name}_transmission.dat")
+    
+        # Save as one column
+        np.savetxt(out_fn, transmission, fmt="%.6f")
+    
+        print(f"Wrote {out_fn}")
+    dt1.fh5.close()
+
+#Cell_4
+
+save_transmission(fns="Thomas_zero_25_2.h5")
