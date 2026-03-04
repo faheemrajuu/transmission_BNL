@@ -1,0 +1,94 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import linregress
+
+# =============================
+# USER INPUT
+# =============================
+
+sample_name = "Bkgrnd_500"
+
+# Transmission values from LiX notebook
+T_glass = 2.5132
+T_glass_solvent = 1.7035
+
+# Constants
+mu_over_rho = 1.673      # cm^2/g (NIST @ λ = 0.786 Å)
+rho = 0.997              # g/cm^3 (water density)
+water_abs_scattering = 1.64e-2   # cm^-1
+
+# Guinier region
+q_min_fit = 0.03
+q_max_fit = 0.56
+
+# =============================
+# STEP 1 — Average frames
+# =============================
+
+merged = dt1.d1s[sample_name]["merged"]
+
+q = merged[0].qgrid
+I = np.mean(np.vstack([d.data for d in merged]), axis=0)
+
+# =============================
+# STEP 2 — Guinier fit
+# =============================
+
+mask = (q >= q_min_fit) & (q <= q_max_fit) & (I > 0)
+
+q_fit = q[mask]
+I_fit = I[mask]
+
+q2 = q_fit**2
+lnI = np.log(I_fit)
+
+fit = linregress(q2, lnI)
+
+slope = fit.slope
+intercept = fit.intercept
+
+I0 = np.exp(intercept)
+
+# =============================
+# STEP 3 — Calculate thickness
+# =============================
+
+mu = mu_over_rho * rho
+
+t = (1/mu) * np.log(T_glass / T_glass_solvent)
+
+# =============================
+# STEP 4 — Absolute scaling factor
+# =============================
+
+scale_factor = water_abs_scattering * t / I0
+
+# =============================
+# STEP 5 — Plot Guinier
+# =============================
+
+q_guinier = np.linspace(0, q_fit.max(), 200)
+I_guinier = np.exp(slope*q_guinier**2 + intercept)
+
+fig, ax = plt.subplots(figsize=(6,4))
+
+ax.loglog(q, I, label="Measured")
+ax.loglog(q_guinier[1:], I_guinier[1:], "r--", label="Guinier fit")
+
+ax.plot(q_guinier[1], I0, "ro")
+
+ax.set_xlabel("q (Å⁻¹)")
+ax.set_ylabel("I(q)")
+ax.legend()
+
+plt.tight_layout()
+plt.show()
+
+# =============================
+# OUTPUT
+# =============================
+
+print("\n===== ABSOLUTE CALIBRATION =====")
+print(f"I(0) = {I0:.4f}")
+print(f"Thickness t = {t:.4f} cm")
+print(f"Scaling factor = {scale_factor:.6f}")
